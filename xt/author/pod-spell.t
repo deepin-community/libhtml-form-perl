@@ -6,7 +6,7 @@ use Test::More;
 use Test::Spelling 0.12;
 use Pod::Wordlist;
 
-set_spell_cmd('aspell list');
+set_spell_cmd('aspell --master=en_US list');
 add_stopwords(<DATA>);
 all_pod_files_spelling_ok( qw( bin lib ) );
 __DATA__
@@ -18,6 +18,7 @@ Alex
 Alexandr
 Alexey
 Andreas
+Anwar
 Bill
 Bron
 Burke
@@ -31,15 +32,19 @@ David
 Denaxas
 FWILES
 Father
+Felix
 Fiegehenn
+FileInput
 Finch
 Form
 Froehlich
 Gavin
 Ghedini
+Gil
 Gisle
 Gondwana
 Graeme
+Graham
 Grossmann
 HTML
 Hanak
@@ -48,33 +53,44 @@ Hay
 Hedlund
 Hukins
 Ian
+IgnoreInput
+ImageInput
+Input
 Jacob
+James
 Julien
 Kapranoff
 Karaban
 Kennedy
+KeygenInput
 Kilgore
+Knop
 Koenig
 Lance
 Lipcon
+ListInput
 Lukas
 MARKSTOS
+Magno
 Mai
 Mann
 Mark
 Mike
+Mohammad
 Olaf
 Ondrej
+Ostmann
 Peter
 Peters
 Rabbitson
+Raspass
 Rezic
 Robert
 Rolf
 Schilli
 Sean
 Sjogren
-Skytta
+Skyttä
 Slaven
 Spiros
 Steinbrunner
@@ -82,6 +98,8 @@ Steve
 SteveHay
 Stone
 Stosberg
+SubmitInput
+TextInput
 Thompson
 Todd
 Tom
@@ -112,18 +130,24 @@ davidrw
 denaxas
 dot
 dsteinbrunner
+felix
+gilmagno
 gisle
 github
 gpeters
+haarg
 hfroehlich
 iank
 jefflee
 john9art
+jraspass
 ka
+keygen
 lib
 lw
 mai
 mark
+mohammad
 mschilli
 murphy
 olaf

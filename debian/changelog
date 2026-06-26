@@ -1,3 +1,60 @@
+libhtml-form-perl (6.12-1) unstable; urgency=medium
+
+  * Team upload.
+  * Import upstream version 6.12.
+  * Drop http_message_7.0.patch, fixed in the code itself now.
+  * debian/control: remove version constraint from
+    libhttp-message-perl test dependency.
+
+ -- gregor herrmann <gregoa@debian.org>  Wed, 23 Oct 2024 17:25:36 +0200
+
+libhtml-form-perl (6.11-2) unstable; urgency=medium
+
+  * Team upload.
+  * Add patch to fix test failing with HTTP::Message 7.00.
+    (Closes: #1084899)
+  * Test-depend on libhttp-message-perl (>= 7.00). Cf. #1084899.
+  * Declare compliance with Debian Policy 4.7.0.
+
+ -- gregor herrmann <gregoa@debian.org>  Thu, 10 Oct 2024 18:01:49 +0200
+
+libhtml-form-perl (6.11-1) unstable; urgency=medium
+
+  * Team upload.
+  * Import upstream version 6.11.
+  * New test dependency: Test::Warnings.
+  * Declare compliance with Debian Policy 4.6.2.
+
+ -- gregor herrmann <gregoa@debian.org>  Tue, 14 Feb 2023 22:48:54 +0100
+
+libhtml-form-perl (6.10-1) unstable; urgency=medium
+
+  * Team upload.
+  * Import upstream version 6.10.
+
+ -- gregor herrmann <gregoa@debian.org>  Mon, 22 Aug 2022 16:24:36 +0200
+
+libhtml-form-perl (6.09-1) unstable; urgency=medium
+
+  * Team upload.
+  * Import upstream version 6.09.
+
+ -- gregor herrmann <gregoa@debian.org>  Mon, 15 Aug 2022 04:09:46 +0200
+
+libhtml-form-perl (6.08-1) unstable; urgency=medium
+
+  * Team upload.
+
+  [ Debian Janitor ]
+  * Bump debhelper from old 12 to 13.
+  * Update standards version to 4.6.0, no changes needed.
+
+  [ gregor herrmann ]
+  * Import upstream version 6.08.
+  * Declare compliance with Debian Policy 4.6.1.
+
+ -- gregor herrmann <gregoa@debian.org>  Sun, 14 Aug 2022 17:59:43 +0200
+
 libhtml-form-perl (6.07-1) unstable; urgency=medium
 
   * Team upload.

@@ -1,10 +1,10 @@
 use strict;
 use warnings;
 
-# this test was generated with Dist::Zilla::Plugin::Test::EOL 0.19
+# this test was generated with Dist::Zilla::Plugin::Test::NoTabs 0.15
 
 use Test::More 0.88;
-use Test::EOL;
+use Test::NoTabs;
 
 my @files = (
     'lib/HTML/Form.pm',
@@ -32,5 +32,5 @@ my @files = (
     't/form.t'
 );
 
-eol_unix_ok($_, { trailing_whitespace => 1 }) foreach @files;
+notabs_ok($_) foreach @files;
 done_testing;
