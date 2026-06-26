@@ -1,51 +1,53 @@
-#!perl -w
+#!perl
 
 use strict;
-use Test qw(plan ok);
+use warnings;
 
-plan tests => 127;
-
+use Test::More;
 use HTML::Form;
 
 my @warn;
-$SIG{__WARN__} = sub { push(@warn, $_[0]) };
+$SIG{__WARN__} = sub { push( @warn, $_[0] ) };
 
-my @f = HTML::Form->parse("", "http://localhost/");
-ok(@f, 0);
+my @f = HTML::Form->parse( "", "http://localhost/" );
+is( @f, 0 );
 
-@f = HTML::Form->parse(<<'EOT', "http://localhost/");
+@f = HTML::Form->parse( <<'EOT', "http://localhost/" );
 <form action="abc" name="foo">
 <input name="name">
 </form>
 <form></form>
 EOT
 
-ok(@f, 2);
+is( @f, 2 );
 
 my $f = shift @f;
-ok($f->value("name"), "");
-ok($f->dump, "GET http://localhost/abc [foo]\n  name=                          (text)\n");
+is( $f->value("name"), "" );
+is(
+    $f->dump,
+    "GET http://localhost/abc [foo]\n  name=                          (text)\n"
+);
 
 my $req = $f->click;
-ok($req->method, "GET");
-ok($req->uri, "http://localhost/abc?name=");
+is( $req->method, "GET" );
+is( $req->uri,    "http://localhost/abc?name=" );
 
-$f->value(name => "Gisle Aas");
+$f->value( name => "Gisle Aas" );
 $req = $f->click;
-ok($req->method, "GET");
-ok($req->uri, "http://localhost/abc?name=Gisle+Aas");
+is( $req->method, "GET" );
+is( $req->uri,    "http://localhost/abc?name=Gisle+Aas" );
 
-ok($f->attr("name"), "foo");
-ok($f->attr("method"), undef);
+is( $f->attr("name"),   "foo" );
+is( $f->attr("method"), undef );
 
 $f = shift @f;
-ok($f->method, "GET");
-ok($f->action, "http://localhost/");
-ok($f->enctype, "application/x-www-form-urlencoded");
-ok($f->dump, "GET http://localhost/\n");
+is( $f->method,  "GET" );
+is( $f->action,  "http://localhost/" );
+is( $f->enctype, "application/x-www-form-urlencoded" );
+is( $f->dump,    "GET http://localhost/\n" );
 
 # try some more advanced inputs
-$f = HTML::Form->parse(<<'EOT', base => "http://localhost/", verbose => 1);
+$f = HTML::Form->parse( <<'EOT', base => "http://localhost/", verbose => 1 );
 <form method=post>
    <input name=i type="image" src="foo.gif">
    <input name=c type="checkbox" checked>
@@ -81,7 +83,7 @@ EOT
 #print $f->dump;
 #print $f->click->as_string;
 
-ok($f->click->as_string, <<'EOT');
+is( $f->click->as_string, <<'EOT');
 POST http://localhost/
 Content-Length: 86
 Content-Type: application/x-www-form-urlencoded
@@ -89,11 +91,11 @@ Content-Type: application/x-www-form-urlencoded
 i.x=1&i.y=1&c=on&r=b&t=&p=&tel=&date=&h=xyzzy&f=&x=&a=%0D%0Aabc%0D%0A+++&s=bar&m=a&m=b
 EOT
 
-ok(@warn, 1);
-ok($warn[0] =~ /^Unknown input type 'xyzzy'/);
+is( @warn, 1 );
+like( $warn[0], qr/^Unknown input type 'xyzzy'/ );
 @warn = ();
 
-$f = HTML::Form->parse(<<'EOT', "http://localhost/");
+$f = HTML::Form->parse( <<'EOT', "http://localhost/" );
 <form>
    <input type=submit value="Upload it!" name=n disabled>
    <input type=image alt="Foo">
@@ -102,13 +104,13 @@ $f = HTML::Form->parse(<<'EOT', "http://localhost/");
 EOT
 
 #$f->dump;
-ok($f->click->as_string, <<'EOT');
+is( $f->click->as_string, <<'EOT');
 GET http://localhost/?x=1&y=1&t=1
 
 EOT
 
 # test file upload
-$f = HTML::Form->parse(<<'EOT', "http://localhost/");
+$f = HTML::Form->parse( <<'EOT', "http://localhost/" );
 <form method=post enctype="MULTIPART/FORM-DATA">
    <input name=f type=file value="/etc/passwd">
    <input type=submit value="Upload it!">
@@ -118,7 +120,7 @@ EOT
 #print $f->dump;
 #print $f->click->as_string;
 
-ok($f->click->as_string, <<'EOT');
+is( $f->click->as_string, <<'EOT');
 POST http://localhost/
 Content-Length: 0
 Content-Type: multipart/form-data; boundary=none
@@ -133,11 +135,11 @@ binmode($file);
 print $file "This is some text\n";
 close($file) || die;
 
-$f->value(f => $filename);
+$f->value( f => $filename );
 
 #print $f->click->as_string;
 
-ok($f->click->as_string, <<"EOT");
+is( $f->click->as_string, <<"EOT");
 POST http://localhost/
 Content-Length: 139
 Content-Type: multipart/form-data; boundary=xYzZY
@@ -153,28 +155,27 @@ EOT
 
 unlink($filename) || warn "Can't unlink '$filename': $!";
 
-ok(@warn, 0);
+is( @warn, 0 );
 
 # Try to parse form HTTP::Response directly
 {
     package MyResponse;
-    use vars qw(@ISA);
     require HTTP::Response;
-    @ISA = ('HTTP::Response');
+    our @ISA = ('HTTP::Response');
 
     sub base { "http://www.example.com" }
 }
-my $response = MyResponse->new(200, 'OK');
+my $response = MyResponse->new( 200, 'OK' );
 $response->content("<form><input type=text value=42 name=x></form>");
 
 $f = HTML::Form->parse($response);
 
-ok($f->click->as_string, <<"EOT");
+is( $f->click->as_string, <<"EOT");
 GET http://www.example.com?x=42
 
 EOT
 
-$f = HTML::Form->parse(<<EOT, "http://www.example.com");
+$f = HTML::Form->parse( <<EOT, "http://www.example.com" );
 <form>
    <input type=checkbox name=x> I like it!
 </form>
@@ -182,30 +183,30 @@ EOT
 
 $f->find_input("x")->check;
 
-ok($f->click->as_string, <<"EOT");
+is( $f->click->as_string, <<"EOT");
 GET http://www.example.com?x=on
 
 EOT
 
-$f->value("x", "off");
-ok($f->click->as_string, <<"EOT");
+$f->value( "x", "off" );
+is( $f->click->as_string, <<"EOT");
 GET http://www.example.com
 
 EOT
 
-$f->value("x", "I like it!");
-ok($f->click->as_string, <<"EOT");
+$f->value( "x", "I like it!" );
+is( $f->click->as_string, <<"EOT");
 GET http://www.example.com?x=on
 
 EOT
 
-$f->value("x", "I LIKE IT!");
-ok($f->click->as_string, <<"EOT");
+$f->value( "x", "I LIKE IT!" );
+is( $f->click->as_string, <<"EOT");
 GET http://www.example.com?x=on
 
 EOT
 
-$f = HTML::Form->parse(<<EOT, "http://www.example.com");
+$f = HTML::Form->parse( <<EOT, "http://www.example.com" );
 <form>
 <select name=x>
    <option value=1>one
@@ -218,23 +219,23 @@ $f = HTML::Form->parse(<<EOT, "http://www.example.com");
 </form>
 EOT
 
-$f->value("x", "one");
+$f->value( "x", "one" );
 
-ok($f->click->as_string, <<"EOT");
+is( $f->click->as_string, <<"EOT");
 GET http://www.example.com?x=1
 
 EOT
 
-$f->value("x", "TWO");
-ok($f->click->as_string, <<"EOT");
+$f->value( "x", "TWO" );
+is( $f->click->as_string, <<"EOT");
 GET http://www.example.com?x=2
 
 EOT
 
-ok(join(":", $f->find_input("x")->value_names), "one:two:3");
-ok(join(":", map $_->name, $f->find_input(undef, "option")), "x:y");
+is( join( ":", $f->find_input("x")->value_names ), "one:two:3" );
+is( join( ":", map $_->name, $f->find_input( undef, "option" ) ), "x:y" );
 
-$f = HTML::Form->parse(<<EOT, "http://www.example.com");
+$f = HTML::Form->parse( <<EOT, "http://www.example.com" );
 <form>
 <input name=x value=1 disabled>
 <input name=y value=2 READONLY type=TEXT>
@@ -242,45 +243,43 @@ $f = HTML::Form->parse(<<EOT, "http://www.example.com");
 </form>
 EOT
 
-ok($f->value("x"), 1);
-ok($f->value("y"), 2);
-ok($f->value("z"), 3);
-ok($f->click->uri->query, "y=2&z=3");
+is( $f->value("x"),        1 );
+is( $f->value("y"),        2 );
+is( $f->value("z"),        3 );
+is( $f->click->uri->query, "y=2&z=3" );
 
 my $input = $f->find_input("x");
-ok($input->type, "text");
-ok(!$input->readonly);
-ok($input->disabled);
-ok($input->disabled(0));
-ok(!$input->disabled);
-ok($f->click->uri->query, "x=1&y=2&z=3");
+is( $input->type, "text" );
+ok( !$input->readonly );
+ok( $input->disabled );
+ok( $input->disabled(0) );
+ok( !$input->disabled );
+is( $f->click->uri->query, "x=1&y=2&z=3" );
 
 $input = $f->find_input("y");
-ok($input->type, "text");
-ok($input->readonly);
-ok(!$input->disabled);
+is( $input->type, "text" );
+ok( $input->readonly );
+ok( !$input->disabled );
 $input->value(22);
-ok($f->click->uri->query, "x=1&y=22&z=3");
+is( $f->click->uri->query, "x=1&y=22&z=3" );
 
 $input->strict(1);
-eval {
-    $input->value(23);
-};
-ok($@ =~ /^Input 'y' is readonly/);
+eval { $input->value(23); };
+like( $@, qr/^Input 'y' is readonly/ );
 
-ok($input->readonly(0));
-ok(!$input->readonly);
+ok( $input->readonly(0) );
+ok( !$input->readonly );
 
 $input->value(222);
-ok(@warn, 0);
-ok($f->click->uri->query, "x=1&y=222&z=3");
+is( @warn,                 0 );
+is( $f->click->uri->query, "x=1&y=222&z=3" );
 
 $input = $f->find_input("z");
-ok($input->type, "hidden");
-ok($input->readonly);
-ok(!$input->disabled);
+is( $input->type, "hidden" );
+ok( $input->readonly );
+ok( !$input->disabled );
 
-$f = HTML::Form->parse(<<EOT, "http://www.example.com");
+$f = HTML::Form->parse( <<EOT, "http://www.example.com" );
 <form>
 <textarea name="t" type="hidden">
 <foo>
@@ -291,16 +290,16 @@ $f = HTML::Form->parse(<<EOT, "http://www.example.com");
 </form>
 EOT
 
-ok($f->value("t"), "\n<foo>\n");
-ok($f->value("s"), "Foo");
-ok(join(":", $f->find_input("s")->possible_values), "Foo:bar");
-ok(join(":", $f->find_input("s")->other_possible_values), "bar");
-ok($f->value("s", "bar"), "Foo");
-ok($f->value("s"), "bar");
-ok(join(":", $f->find_input("s")->other_possible_values), "");
+is( $f->value("t"),                                          "\n<foo>\n" );
+is( $f->value("s"),                                          "Foo" );
+is( join( ":", $f->find_input("s")->possible_values ),       "Foo:bar" );
+is( join( ":", $f->find_input("s")->other_possible_values ), "bar" );
+is( $f->value( "s", "bar" ),                                 "Foo" );
+is( $f->value("s"),                                          "bar" );
+is( join( ":", $f->find_input("s")->other_possible_values ), "" );
 
-
-$f = HTML::Form->parse(<<EOT, base => "http://www.example.com", strict => 1);
+$f = HTML::Form->parse(
+    <<EOT, base => "http://www.example.com", strict => 1 );
 <form>
 
 <input type=radio name=r0 value=1 disabled>one
@@ -360,68 +359,69 @@ $f = HTML::Form->parse(<<EOT, base => "http://www.example.com", strict => 1);
 </form>
 
 EOT
+
 #print $f->dump;
-ok($f->find_input("r0")->disabled);
-ok(!eval {$f->value("r0", 1);});
-ok($@ && $@ =~ /^The value '1' has been disabled for field 'r0'/);
-ok($f->find_input("r0")->disabled(0));
-ok(!$f->find_input("r0")->disabled);
-ok($f->value("r0", 1), undef);
-ok($f->value("r0"), 1);
+ok( $f->find_input("r0")->disabled );
+ok( !eval { $f->value( "r0", 1 ); } );
+like( $@, qr/^The value '1' has been disabled for field 'r0'/ );
+ok( $f->find_input("r0")->disabled(0) );
+ok( !$f->find_input("r0")->disabled );
+is( $f->value( "r0", 1 ), undef );
+is( $f->value("r0"),      1 );
 
-ok(!$f->find_input("r1")->disabled);
-ok($f->value("r1", 2), undef);
-ok($f->value("r1"), 2);
-ok(!eval {$f->value("r1", 1);});
-ok($@ && $@ =~ /^The value '1' has been disabled for field 'r1'/);
+ok( !$f->find_input("r1")->disabled );
+is( $f->value( "r1", 2 ), undef );
+is( $f->value("r1"),      2 );
+ok( !eval { $f->value( "r1", 1 ); } );
+like( $@, qr/^The value '1' has been disabled for field 'r1'/ );
 
-ok($f->value("r2", 1), undef);
-ok(!eval {$f->value("r2", 2);});
-ok($@ && $@ =~ /^The value '2' has been disabled for field 'r2'/);
-ok(!eval {$f->value("r2", "two");});
-ok($@ && $@ =~ /^The value 'two' has been disabled for field 'r2'/);
-ok(!$f->find_input("r2")->disabled(1));
-ok(!eval {$f->value("r2", 1);});
-ok($@ && $@ =~ /^The value '1' has been disabled for field 'r2'/);
-ok($f->find_input("r2")->disabled(0));
-ok(!$f->find_input("r2")->disabled);
-ok($f->value("r2", 2), 1);
+is( $f->value( "r2", 1 ), undef );
+ok( !eval { $f->value( "r2", 2 ); } );
+like( $@, qr/^The value '2' has been disabled for field 'r2'/ );
+ok( !eval { $f->value( "r2", "two" ); } );
+like( $@, qr/^The value 'two' has been disabled for field 'r2'/ );
+ok( !$f->find_input("r2")->disabled(1) );
+ok( !eval { $f->value( "r2", 1 ); } );
+like( $@, qr/^The value '1' has been disabled for field 'r2'/ );
+ok( $f->find_input("r2")->disabled(0) );
+ok( !$f->find_input("r2")->disabled );
+is( $f->value( "r2", 2 ), 1 );
 
-ok($f->find_input("s0")->disabled);
-ok(!$f->find_input("s1")->disabled);
-ok(!$f->find_input("s2")->disabled);
-ok($f->find_input("s3")->disabled);
+ok( $f->find_input("s0")->disabled );
+ok( !$f->find_input("s1")->disabled );
+ok( !$f->find_input("s2")->disabled );
+ok( $f->find_input("s3")->disabled );
 
-ok(!eval {$f->value("s1", 1);});
-ok($@ && $@ =~ /^The value '1' has been disabled for field 's1'/);
+ok( !eval { $f->value( "s1", 1 ); } );
+like( $@, qr/^The value '1' has been disabled for field 's1'/ );
 
-ok($f->find_input("m0")->disabled);
-ok($f->find_input("m1", undef, 1)->disabled);
-ok(!$f->find_input("m1", undef, 2)->disabled);
-ok(!$f->find_input("m1", undef, 3)->disabled);
+ok( $f->find_input("m0")->disabled );
+ok( $f->find_input( "m1",  undef, 1 )->disabled );
+ok( !$f->find_input( "m1", undef, 2 )->disabled );
+ok( !$f->find_input( "m1", undef, 3 )->disabled );
 
-ok(!$f->find_input("m2", undef, 1)->disabled);
-ok($f->find_input("m2", undef, 2)->disabled);
-ok(!$f->find_input("m2", undef, 3)->disabled);
+ok( !$f->find_input( "m2", undef, 1 )->disabled );
+ok( $f->find_input( "m2",  undef, 2 )->disabled );
+ok( !$f->find_input( "m2", undef, 3 )->disabled );
 
-ok($f->find_input("m3", undef, 1)->disabled);
-ok($f->find_input("m3", undef, 2)->disabled);
-ok($f->find_input("m3", undef, 3)->disabled);
+ok( $f->find_input( "m3", undef, 1 )->disabled );
+ok( $f->find_input( "m3", undef, 2 )->disabled );
+ok( $f->find_input( "m3", undef, 3 )->disabled );
 
-$f->find_input("m3", undef, 2)->disabled(0);
-ok(!$f->find_input("m3", undef, 2)->disabled);
-ok($f->find_input("m3", undef, 2)->value(2), undef);
-ok($f->find_input("m3", undef, 2)->value(undef), 2);
+$f->find_input( "m3", undef, 2 )->disabled(0);
+ok( !$f->find_input( "m3", undef, 2 )->disabled );
+is( $f->find_input( "m3",  undef, 2 )->value(2),     undef );
+is( $f->find_input( "m3",  undef, 2 )->value(undef), 2 );
 
-$f->find_input("m3", undef, 2)->disabled(1);
-ok($f->find_input("m3", undef, 2)->disabled);
-ok(eval{$f->find_input("m3", undef, 2)->value(2)}, undef);
-ok($@ && $@ =~ /^The value '2' has been disabled/);
-ok(eval{$f->find_input("m3", undef, 2)->value(undef)}, undef);
-ok($@ && $@ =~ /^The 'm3' field can't be unchecked/);
+$f->find_input( "m3", undef, 2 )->disabled(1);
+ok( $f->find_input( "m3", undef, 2 )->disabled );
+is( eval { $f->find_input( "m3", undef, 2 )->value(2) }, undef );
+like( $@, qr/^The value '2' has been disabled/ );
+is( eval { $f->find_input( "m3", undef, 2 )->value(undef) }, undef );
+like( $@, qr/^The 'm3' field can't be unchecked/ );
 
 # multiple select with the same name [RT#18993]
-$f = HTML::Form->parse(<<EOT, "http://localhost/");
+$f = HTML::Form->parse( <<EOT, "http://localhost/" );
 <form action="target.html" method="get">
 <select name="bug">
 <option selected value=hi>hi
@@ -436,10 +436,10 @@ $f = HTML::Form->parse(<<EOT, "http://localhost/");
 <option selected value=mom>mom
 </select>
 EOT
-ok(join("|", $f->form), "bug|hi|bug|mom|nobug|mom");
+is( join( "|", $f->form ), "bug|hi|bug|mom|nobug|mom" );
 
 # Try a disabled radiobutton:
-$f = HTML::Form->parse(<<EOT, "http://localhost/");
+$f = HTML::Form->parse( <<EOT, "http://localhost/" );
 <form>
  <input disabled checked type=radio name=f value=a>
  <input type=hidden name=f value=b>
@@ -447,12 +447,12 @@ $f = HTML::Form->parse(<<EOT, "http://localhost/");
 
 EOT
 
-ok($f->click->as_string, <<'EOT');
+is( $f->click->as_string, <<'EOT');
 GET http://localhost/?f=b
 
 EOT
 
-$f = HTML::Form->parse(<<EOT, "http://www.example.com");
+$f = HTML::Form->parse( <<EOT, "http://www.example.com" );
 <!-- from http://www.blooberry.com/indexdot/html/tagpages/k/keygen.htm -->
 <form  METHOD="post" ACTION="http://example.com/secure/keygen/test.cgi" ENCTYPE="application/x-www-form-urlencoded">
    <keygen NAME="randomkey" CHALLENGE="1234567890">
@@ -460,10 +460,10 @@ $f = HTML::Form->parse(<<EOT, "http://www.example.com");
 </form>
 EOT
 
-ok($f->find_input("randomkey"));
-ok($f->find_input("randomkey")->challenge, "1234567890");
-ok($f->find_input("randomkey")->keytype, "rsa");
-ok($f->click->as_string, <<EOT);
+ok( $f->find_input("randomkey") );
+is( $f->find_input("randomkey")->challenge, "1234567890" );
+is( $f->find_input("randomkey")->keytype,   "rsa" );
+is( $f->click->as_string,                   <<EOT);
 POST http://example.com/secure/keygen/test.cgi
 Content-Length: 19
 Content-Type: application/x-www-form-urlencoded
@@ -471,8 +471,8 @@ Content-Type: application/x-www-form-urlencoded
 Field1=Default+Text
 EOT
 
-$f->value(randomkey => "foo");
-ok($f->click->as_string, <<EOT);
+$f->value( randomkey => "foo" );
+is( $f->click->as_string, <<EOT);
 POST http://example.com/secure/keygen/test.cgi
 Content-Length: 33
 Content-Type: application/x-www-form-urlencoded
@@ -480,7 +480,7 @@ Content-Type: application/x-www-form-urlencoded
 randomkey=foo&Field1=Default+Text
 EOT
 
-$f = HTML::Form->parse(<<EOT, "http://www.example.com");
+$f = HTML::Form->parse( <<EOT, "http://www.example.com" );
 <form  ACTION="http://example.com/">
    <select name=s>
      <option>1
@@ -490,10 +490,9 @@ $f = HTML::Form->parse(<<EOT, "http://www.example.com");
 EOT
 
 ok($f);
-ok($f->find_input("t"));
+ok( $f->find_input("t") );
 
-
-@f = HTML::Form->parse(<<EOT, "http://www.example.com");
+@f = HTML::Form->parse( <<EOT, "http://www.example.com" );
 <form  ACTION="http://example.com/">
    <select name=s>
      <option>1
@@ -504,11 +503,11 @@ ok($f->find_input("t"));
 </form>
 EOT
 
-ok(@f, 2);
-ok($f[0]->find_input("s"));
-ok($f[1]->find_input("t"));
+is( @f, 2 );
+ok( $f[0]->find_input("s") );
+ok( $f[1]->find_input("t") );
 
-$f = HTML::Form->parse(<<EOT, "http://www.example.com");
+$f = HTML::Form->parse( <<EOT, "http://www.example.com" );
 <form  ACTION="http://example.com/">
   <fieldset>
     <legend>Radio Buttons with Labels</legend>
@@ -533,43 +532,43 @@ $f = HTML::Form->parse(<<EOT, "http://www.example.com");
 </form>
 EOT
 
-ok(join(":", $f->find_input("r0")->value_names), "zero");
-ok(join(":", $f->find_input("r1")->value_names), "one");
-ok(join(":", $f->find_input("r2")->value_names), "two");
-ok(join(":", $f->find_input("r3")->value_names), "nested");
-ok(join(":", $f->find_input("r4")->value_names), "before and after");
+is( join( ":", $f->find_input("r0")->value_names ), "zero" );
+is( join( ":", $f->find_input("r1")->value_names ), "one" );
+is( join( ":", $f->find_input("r2")->value_names ), "two" );
+is( join( ":", $f->find_input("r3")->value_names ), "nested" );
+is( join( ":", $f->find_input("r4")->value_names ), "before and after" );
 
-$f = HTML::Form->parse(<<EOT, "http://www.example.com");
+$f = HTML::Form->parse( <<EOT, "http://www.example.com" );
 <form>
   <table>
     <TR>
       <TD align="left" colspan="2">
-	&nbsp;&nbsp;&nbsp;&nbsp;Keep me informed on the progress of this election
-	<INPUT type="checkbox" id="keep_informed" name="keep_informed" value="yes" checked>
+        &nbsp;&nbsp;&nbsp;&nbsp;Keep me informed on the progress of this election
+        <INPUT type="checkbox" id="keep_informed" name="keep_informed" value="yes" checked>
       </TD>
     </TR>
     <TR>
       <TD align=left colspan=2>
-	<BR><B>The place you are registered to vote:</B>
+        <BR><B>The place you are registered to vote:</B>
       </TD>
     </TR>
     <TR>
       <TD valign="middle" height="2" align="right">
-	<A name="Note1back">County or Parish</A>
+        <A name="Note1back">County or Parish</A>
       </TD>
       <TD align="left">
-	<INPUT type="text" id="reg_county" size="40" name="reg_county" value="">
+        <INPUT type="text" id="reg_county" size="40" name="reg_county" value="">
       </TD>
       <TD align="left" width="10">
-	<A href="#Note2" class="c2" tabindex="-1">Note&nbsp;2</A>
+        <A href="#Note2" class="c2" tabindex="-1">Note&nbsp;2</A>
       </TD>
     </TR>
   </table>
 </form>
 EOT
-ok(join(":", $f->find_input("keep_informed")->value_names), "off:");
+is( join( ":", $f->find_input("keep_informed")->value_names ), "off:" );
 
-$f = HTML::Form->parse(<<EOT, "http://www.example.com");
+$f = HTML::Form->parse( <<EOT, "http://www.example.com" );
 <form action="test" method="post">
 <select name="test">
 <option value="1">One</option>
@@ -581,11 +580,11 @@ $f = HTML::Form->parse(<<EOT, "http://www.example.com");
 </body>
 </html>
 EOT
-ok(join(":", $f->find_input("test")->possible_values), "1:2");
-ok(join(":", $f->find_input("test")->other_possible_values), "2");
+is( join( ":", $f->find_input("test")->possible_values ),       "1:2" );
+is( join( ":", $f->find_input("test")->other_possible_values ), "2" );
 
 @warn = ();
-$f = HTML::Form->parse(<<EOT, "http://www.example.com");
+$f    = HTML::Form->parse( <<EOT, "http://www.example.com" );
 <form>
 <select id="myselect">
 <option>one</option>
@@ -594,4 +593,85 @@ $f = HTML::Form->parse(<<EOT, "http://www.example.com");
 </select>
 </form>
 EOT
-ok(@warn, 0);
+is( @warn, 0 );
+
+$f = HTML::Form->parse( <<EOT, base => "http://localhost/" );
+<form method=post>
+<form action="test" method="post">
+<button type="submit" name="submit" value="go">run</button>
+</form>
+EOT
+
+is( $f->click->as_string, <<EOT);
+POST http://localhost/
+Content-Length: 9
+Content-Type: application/x-www-form-urlencoded
+
+submit=go
+EOT
+
+$f = HTML::Form->parse( <<EOT, base => "http://localhost/" );
+<form method=post>
+<form action="test" method="post">
+<button type="submit" name="submit">run</button>
+</form>
+EOT
+
+is( $f->click->as_string, <<EOT);
+POST http://localhost/
+Content-Length: 7
+Content-Type: application/x-www-form-urlencoded
+
+submit=
+EOT
+
+# select with a name followed by select without a name GH#2
+$f = HTML::Form->parse( <<EOT, "http://localhost/" );
+<form action="target.html" method="get">
+<select>
+<option selected>option in unnamed before</option>
+</select>
+<select name="foo">
+<option selected>option in named</option>
+</select>
+<select>
+<option selected>option in unnamed after 1</option>
+</select>
+<select name="">
+<option selected>option in empty string name</option>
+</select>
+EOT
+
+TODO: {
+    local $TODO = 'input with empty name should not be included';
+    is(
+        join( "|", $f->form ),
+        "foo|option in named",
+        "options in unnamed selects are ignored"
+    );
+}
+
+# explicitly selecting an input that has no name
+my @nameless_inputs = $f->find_input( \undef );
+is(
+    scalar @nameless_inputs,
+    3, 'find_input with ref to undef finds three forms'
+);
+ok(
+    ( !grep { $_->{name} } @nameless_inputs ),
+    '... and none of them has a name'
+);
+
+ok(
+    !( scalar $f->find_input( \undef ) )->{name},
+    'find_input with ref to undef in scalar context'
+);
+TODO: {
+    local $TODO = 'input with empty name should not be included';
+    is( $f->click->as_string, <<"EOT");
+GET http://localhost/target.html?foo=option+in+named
+
+EOT
+}
+
+done_testing;
